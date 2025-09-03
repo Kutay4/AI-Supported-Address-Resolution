@@ -1,0 +1,16 @@
+[workspace]
+authors = ["Kutay4 <141006414+Kutay4@users.noreply.github.com>"]
+channels = ["conda-forge"]
+name = "AI-Supported-Address-Resolution"
+platforms = ["osx-arm64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+pytorch = ">=2.7.1,<3"
+polars = ">=1.33.0,<2"
+tqdm = ">=4.67.1,<5"
+scikit-learn = ">=1.7.1,<2"
+pandas = ">=2.3.2,<3"
+transformers = ">=4.56.0,<5"
