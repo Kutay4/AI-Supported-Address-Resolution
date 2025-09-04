@@ -1,12 +1,13 @@
 if __name__ == "__main__":
-    import os 
-    os.environ["TOKENIZERS_PARALLELISM"] = "true"  
+    import os
+
+    os.environ["TOKENIZERS_PARALLELISM"] = "true"
     import pandas as pd
     import onnxruntime as ort
     from tqdm import tqdm
     from transformers import AutoTokenizer
     from torch.utils.data import DataLoader
-    from utils import AddressTestDataset
+    from utils.model_utils import AddressTestDataset
     import numpy as np
 
     model_name = "dbmdz/bert-base-turkish-cased"
@@ -16,7 +17,14 @@ if __name__ == "__main__":
 
     test_df = pd.read_csv("test.csv")
     test_dataset = AddressTestDataset(test_df, tokenizer)
-    test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False, num_workers=4, prefetch_factor = 2, persistent_workers=True)
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=32,
+        shuffle=False,
+        num_workers=4,
+        prefetch_factor=2,
+        persistent_workers=True,
+    )
 
     preds = []
 
@@ -31,8 +39,5 @@ if __name__ == "__main__":
 
     preds = np.array(preds)
 
-    submission = pd.DataFrame({
-        "id": test_df["id"],
-        "label": preds + 1
-    })
+    submission = pd.DataFrame({"id": test_df["id"], "label": preds + 1})
     submission.to_csv("submission_onnx.csv", index=False)

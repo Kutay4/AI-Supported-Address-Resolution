@@ -1,6 +1,7 @@
 if __name__ == "__main__":
     import os
-    os.environ["TOKENIZERS_PARALLELISM"] = "false"    
+
+    os.environ["TOKENIZERS_PARALLELISM"] = "false"
     import pandas as pd
     import numpy as np
     from tqdm import tqdm
@@ -8,22 +9,32 @@ if __name__ == "__main__":
     import torch
     from torch.utils.data import DataLoader
     from utils import AddressTestDataset, CustomClassifier
+
     torch.set_float32_matmul_precision("high")
 
     model_name = "dbmdz/bert-base-turkish-cased"
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     device = "mps"
-    
+
     model = CustomClassifier(model_name, num_labels=10390)
-    model.load_state_dict(torch.load("checkpoint_latest.pth", map_location=device)["model_state_dict"])
+    model.load_state_dict(
+        torch.load("checkpoint_latest.pth", map_location=device)["model_state_dict"]
+    )
     model.eval()
     model.to(device)
 
     test_df = pd.read_csv("test.csv")
     test_dataset = AddressTestDataset(test_df, tokenizer)
-    test_loader = DataLoader(test_dataset, batch_size=128, shuffle=False, num_workers=4, prefetch_factor = 2,persistent_workers=True)
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=128,
+        shuffle=False,
+        num_workers=4,
+        prefetch_factor=2,
+        persistent_workers=True,
+    )
 
-    compiled_model = torch.compile(model,backend="aot_eager")
+    compiled_model = torch.compile(model, backend="aot_eager")
 
     preds = []
     with torch.no_grad():
@@ -31,14 +42,13 @@ if __name__ == "__main__":
             for batch in tqdm(test_loader):
                 input_ids = batch["input_ids"].to(device, non_blocking=True)
                 attention_mask = batch["attention_mask"].to(device, non_blocking=True)
-                logits = compiled_model(input_ids=input_ids, attention_mask=attention_mask)
+                logits = compiled_model(
+                    input_ids=input_ids, attention_mask=attention_mask
+                )
                 batch_preds = torch.argmax(logits, dim=-1)
                 preds.append(batch_preds)
 
     preds = torch.cat(preds).cpu().numpy()
 
-    submission = pd.DataFrame({
-            "id": test_df["id"],
-            "label": np.array(preds) + 1
-    })
+    submission = pd.DataFrame({"id": test_df["id"], "label": np.array(preds) + 1})
     submission.to_csv("submission.csv", index=False)

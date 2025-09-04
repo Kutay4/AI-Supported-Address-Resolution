@@ -1,6 +1,7 @@
 if __name__ == "__main__":
     import os
-    os.environ["TOKENIZERS_PARALLELISM"] = "true"    
+
+    os.environ["TOKENIZERS_PARALLELISM"] = "true"
     import pandas as pd
     import numpy as np
     from tqdm import tqdm
@@ -14,29 +15,36 @@ if __name__ == "__main__":
         torch.backends.quantized.engine = "fbgemm"
     elif "qnnpack" in torch.backends.quantized.supported_engines:
         torch.backends.quantized.engine = "qnnpack"
-    
+
     torch.set_float32_matmul_precision("high")
     torch.set_num_threads(8)
 
     model_name = "dbmdz/bert-base-turkish-cased"
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     device = "cpu"
-    
+
     model = CustomClassifier(model_name, num_labels=10390)
-    model.load_state_dict(torch.load("checkpoint_latest.pth", map_location=device)["model_state_dict"])
+    model.load_state_dict(
+        torch.load("checkpoint_latest.pth", map_location=device)["model_state_dict"]
+    )
     model.eval()
 
-    model = torch.quantization.quantize_dynamic(
-        model, {nn.Linear}, dtype=torch.qint8
-    )
+    model = torch.quantization.quantize_dynamic(model, {nn.Linear}, dtype=torch.qint8)
 
     model.to(device)
 
     test_df = pd.read_csv("test.csv")
     test_dataset = AddressTestDataset(test_df, tokenizer)
-    test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False, num_workers=4, prefetch_factor = 2, persistent_workers=True)
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=64,
+        shuffle=False,
+        num_workers=4,
+        prefetch_factor=2,
+        persistent_workers=True,
+    )
 
-    compiled_model = torch.compile(model, backend = "inductor", mode="max-autotune")
+    compiled_model = torch.compile(model, backend="inductor", mode="max-autotune")
 
     preds = []
     with torch.no_grad():
@@ -49,8 +57,5 @@ if __name__ == "__main__":
 
     preds = torch.cat(preds).cpu().numpy()
 
-    submission = pd.DataFrame({
-            "id": test_df["id"],
-            "label": np.array(preds) + 1
-    })
+    submission = pd.DataFrame({"id": test_df["id"], "label": np.array(preds) + 1})
     submission.to_csv("submission.csv", index=False)

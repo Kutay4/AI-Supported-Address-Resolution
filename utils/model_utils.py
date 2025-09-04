@@ -1,8 +1,8 @@
 from transformers import AutoModel
-
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset
+
 
 class CustomClassifier(nn.Module):
     def __init__(self, model_name, num_labels):
@@ -17,14 +17,17 @@ class CustomClassifier(nn.Module):
         x = self.dropout(cls_rep)
         logits = self.classifier(x)
         return logits
-    
+
+
 class AddressDataset(Dataset):
     def __init__(self, df, tokenizer, max_length=128):
         self.df = df.reset_index(drop=True)
         self.tokenizer = tokenizer
         self.max_length = max_length
+
     def __len__(self):
         return len(self.df)
+
     def __getitem__(self, idx):
         address = self.df.iloc[idx]["address"]
         label = self.df.iloc[idx]["label"]
@@ -41,14 +44,17 @@ class AddressDataset(Dataset):
         item["labels"] = torch.tensor(label, dtype=torch.long)
 
         return item
-    
+
+
 class AddressTestDataset(Dataset):
     def __init__(self, df, tokenizer, max_length=128):
         self.df = df.reset_index(drop=True)
         self.tokenizer = tokenizer
         self.max_length = max_length
+
     def __len__(self):
         return len(self.df)
+
     def __getitem__(self, idx):
         address = self.df.iloc[idx]["address"]
         encoding = self.tokenizer(
