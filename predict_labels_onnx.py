@@ -12,18 +12,19 @@ if __name__ == "__main__":
 
     model_name = "dbmdz/bert-base-turkish-cased"
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    onnx_model_path = "model.onnx"
+    onnx_model_path = "model_quantized_optimized_onnx/model_optimized.onnx"
     ort_session = ort.InferenceSession(onnx_model_path)
 
     test_df = pd.read_csv("test.csv")
     test_dataset = AddressTestDataset(test_df, tokenizer)
     test_loader = DataLoader(
         test_dataset,
-        batch_size=32,
+        batch_size=16,
         shuffle=False,
         num_workers=4,
         prefetch_factor=2,
         persistent_workers=True,
+        pin_memory=True,
     )
 
     preds = []

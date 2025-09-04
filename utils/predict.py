@@ -5,13 +5,10 @@ import onnxruntime as ort
 from transformers import AutoTokenizer
 import numpy as np
 
-model_name = "dbmdz/bert-base-turkish-cased"
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-onnx_model_path = "model.onnx"
-ort_session = ort.InferenceSession(onnx_model_path)
 
-
-def predict_address_onnx(address):
+def predict_address_onnx(address, model_path, tokenizer_path):
+    ort_session = ort.InferenceSession(model_path)
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
     enc = tokenizer(
         address,
         padding="max_length",
