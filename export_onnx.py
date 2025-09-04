@@ -1,13 +1,15 @@
 import torch
-from transformers import AutoTokenizer
-from utils import CustomClassifier
+from transformers import AutoConfig, AutoTokenizer
+from utils.model_utils import CustomClassifier
 import onnxruntime as ort
+import os
 
 model_name = "dbmdz/bert-base-turkish-cased"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 device = "cpu"
+num_labels = 10390
 
-model = CustomClassifier(model_name, num_labels=10390)
+model = CustomClassifier(model_name, num_labels=num_labels)
 model.load_state_dict(
     torch.load("checkpoint_latest.pth", map_location=device)["model_state_dict"]
 )
@@ -32,7 +34,9 @@ with torch.no_grad():
 # default torch model result:
 print("Predicted id with torch model:", pred_class)
 
-onnx_model_path = "model.onnx"
+hf_dir = "./model_onnx"
+os.makedirs(hf_dir, exist_ok=True)
+onnx_model_path = "./model_onnx/model.onnx"
 
 dynamic_axes = {
     "input_ids": {0: "batch_size", 1: "sequence_length"},
@@ -50,6 +54,7 @@ with torch.inference_mode():
         do_constant_folding=True,
         dynamic_axes=dynamic_axes,
         export_params=True,
+        opset_version=17,
     )
 
 ort_session = ort.InferenceSession(onnx_model_path)
@@ -63,3 +68,9 @@ logits_onnx = ort_session.run(["logits"], ort_inputs)[0]
 onnx_output = int(logits_onnx.argmax(axis=1)[0]) + 1
 # onnx model result:
 print("Predicted id with onnx model:", onnx_output)
+
+cfg = AutoConfig.from_pretrained(model_name, num_labels=num_labels)
+cfg.save_pretrained(hf_dir)
+
+tok = AutoTokenizer.from_pretrained(model_name, use_fast=True)
+tok.save_pretrained(hf_dir)

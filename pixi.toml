@@ -1,7 +1,7 @@
 [workspace]
 authors = ["Kutay4 <141006414+Kutay4@users.noreply.github.com>"]
 channels = ["conda-forge"]
-name = "AI-Supported-Address-Resolution"
+name = "ai-supported-address-resolution"
 platforms = ["osx-arm64"]
 version = "0.1.0"
 
@@ -17,3 +17,5 @@ transformers = ">=4.56.0,<5"
 onnx = ">=1.18.0,<2"
 onnxruntime = ">=1.22.0,<2"
 onnxscript = ">=0.4.0,<0.5"
+streamlit = ">=1.49.1,<2"
+optimum = ">=1.27.0,<2"
