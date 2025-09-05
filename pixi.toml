@@ -2,7 +2,7 @@
 authors = ["Kutay4 <141006414+Kutay4@users.noreply.github.com>"]
 channels = ["conda-forge"]
 name = "ai-supported-address-resolution"
-platforms = ["osx-arm64"]
+platforms = ["osx-arm64","osx-64"]
 version = "0.1.0"
 
 [tasks]
