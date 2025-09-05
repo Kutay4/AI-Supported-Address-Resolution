@@ -4,6 +4,7 @@ from optimum.onnxruntime import ORTQuantizer, ORTOptimizer
 from optimum.onnxruntime.configuration import OptimizationConfig, AutoQuantizationConfig
 import os
 
+# sample address to compare model results.
 address = "İzmir, Karşıyaka, Bostanlı Mahallesi, Cemal Gürsel Caddesi No:10"
 
 # DEFAULT ONNX

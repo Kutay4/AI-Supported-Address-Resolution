@@ -33,7 +33,7 @@ if __name__ == "__main__":
 
     model.to(device)
 
-    test_df = pd.read_csv("test.csv")
+    test_df = pd.read_csv("data/test.csv")
     test_dataset = AddressTestDataset(test_df, tokenizer)
     test_loader = DataLoader(
         test_dataset,
@@ -58,4 +58,4 @@ if __name__ == "__main__":
     preds = torch.cat(preds).cpu().numpy()
 
     submission = pd.DataFrame({"id": test_df["id"], "label": np.array(preds) + 1})
-    submission.to_csv("submission.csv", index=False)
+    submission.to_csv("data/submission.csv", index=False)

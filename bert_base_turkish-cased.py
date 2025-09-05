@@ -13,7 +13,7 @@ from torch.amp import autocast, GradScaler
 
 model_name = "dbmdz/bert-base-turkish-cased"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
-data = pd.read_csv("train.csv")
+data = pd.read_csv("data/train.csv")
 data["label"] = data["label"] - 1
 
 
@@ -300,7 +300,7 @@ if __name__ == "__main__":
         checkpoint_path="checkpoint_latest.pth"
     )"""
 
-    test_df = pd.read_csv("test.csv")
+    test_df = pd.read_csv("data/test.csv")
     test_dataset = AddressTestDataset(test_df, tokenizer)
     test_loader = DataLoader(test_dataset, batch_size=128, shuffle=False, num_workers=2)
 
@@ -322,4 +322,4 @@ if __name__ == "__main__":
             preds.extend(batch_preds.cpu().numpy())
 
     submission = pd.DataFrame({"id": test_df["id"], "label": np.array(preds) + 1})
-    submission.to_csv("submission.csv", index=False)
+    submission.to_csv("data/submission.csv", index=False)

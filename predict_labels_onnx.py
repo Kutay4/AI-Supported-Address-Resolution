@@ -12,10 +12,10 @@ if __name__ == "__main__":
 
     model_name = "dbmdz/bert-base-turkish-cased"
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    onnx_model_path = "model_quantized_optimized_onnx/model_optimized.onnx"
+    onnx_model_path = "model_quantized_onnx/model.onnx"
     ort_session = ort.InferenceSession(onnx_model_path)
 
-    test_df = pd.read_csv("test.csv")
+    test_df = pd.read_csv("data/test.csv")
     test_dataset = AddressTestDataset(test_df, tokenizer)
     test_loader = DataLoader(
         test_dataset,
@@ -24,7 +24,6 @@ if __name__ == "__main__":
         num_workers=4,
         prefetch_factor=2,
         persistent_workers=True,
-        pin_memory=True,
     )
 
     preds = []
@@ -41,4 +40,4 @@ if __name__ == "__main__":
     preds = np.array(preds)
 
     submission = pd.DataFrame({"id": test_df["id"], "label": preds + 1})
-    submission.to_csv("submission_onnx.csv", index=False)
+    submission.to_csv("data/submission_onnx.csv", index=False)

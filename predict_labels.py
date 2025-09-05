@@ -8,7 +8,7 @@ if __name__ == "__main__":
     from transformers import AutoTokenizer
     import torch
     from torch.utils.data import DataLoader
-    from utils import AddressTestDataset, CustomClassifier
+    from utils.model_utils import AddressTestDataset, CustomClassifier
 
     torch.set_float32_matmul_precision("high")
 
@@ -23,7 +23,7 @@ if __name__ == "__main__":
     model.eval()
     model.to(device)
 
-    test_df = pd.read_csv("test.csv")
+    test_df = pd.read_csv("data/test.csv")
     test_dataset = AddressTestDataset(test_df, tokenizer)
     test_loader = DataLoader(
         test_dataset,
@@ -51,4 +51,4 @@ if __name__ == "__main__":
     preds = torch.cat(preds).cpu().numpy()
 
     submission = pd.DataFrame({"id": test_df["id"], "label": np.array(preds) + 1})
-    submission.to_csv("submission.csv", index=False)
+    submission.to_csv("data/submission_mps.csv", index=False)
