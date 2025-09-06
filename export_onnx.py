@@ -11,7 +11,9 @@ num_labels = 10390
 
 model = CustomClassifier(model_name, num_labels=num_labels)
 model.load_state_dict(
-    torch.load("checkpoint_latest.pth", map_location=device)["model_state_dict"]
+    torch.load("./model_files/checkpoint_latest.pth", map_location=device)[
+        "model_state_dict"
+    ]
 )
 
 # sample address to compare model results.
@@ -34,9 +36,9 @@ with torch.no_grad():
 # default torch model result:
 print("Predicted id with torch model:", pred_class)
 
-hf_dir = "./model_onnx"
+hf_dir = "./model_files/model_onnx"
 os.makedirs(hf_dir, exist_ok=True)
-onnx_model_path = "./model_onnx/model.onnx"
+onnx_model_path = "./model_files/model_onnx/model.onnx"
 
 dynamic_axes = {
     "input_ids": {0: "batch_size", 1: "sequence_length"},

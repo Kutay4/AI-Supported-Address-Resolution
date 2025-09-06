@@ -5,8 +5,8 @@ import numpy as np
 from utils.predict import predict_address_onnx
 from utils.standardize import return_cannon
 
-model_path = "model_quantized_onnx/model.onnx"
-tokenizer_path = "model_quantized_onnx"
+model_path = "./model_files/model_quantized_onnx/model.onnx"
+tokenizer_path = "./model_files/model_quantized_onnx"
 
 st.set_page_config(
     layout="wide",

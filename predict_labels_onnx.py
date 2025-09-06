@@ -9,22 +9,17 @@ if __name__ == "__main__":
     from torch.utils.data import DataLoader
     from utils.model_utils import AddressTestDataset
     import numpy as np
-
-    model_name = "dbmdz/bert-base-turkish-cased"
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    onnx_model_path = "model_quantized_onnx/model.onnx"
-    ort_session = ort.InferenceSession(onnx_model_path)
+    
+    tokenizer_path = "./model_files/model_quantized_onnx"
+    onnx_model_path = "./model_files/model_quantized_onnx/model.onnx"
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
+    ort_session = ort.InferenceSession(
+        onnx_model_path, providers=["CPUExecutionProvider"]
+    )
 
     test_df = pd.read_csv("data/test.csv")
     test_dataset = AddressTestDataset(test_df, tokenizer)
-    test_loader = DataLoader(
-        test_dataset,
-        batch_size=16,
-        shuffle=False,
-        num_workers=4,
-        prefetch_factor=2,
-        persistent_workers=True,
-    )
+    test_loader = DataLoader(test_dataset, batch_size=4, shuffle=False)
 
     preds = []
 
