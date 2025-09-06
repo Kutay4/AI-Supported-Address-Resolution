@@ -1,27 +1,29 @@
-import spacy,pickle,faiss,re,os
+import spacy
+import pickle
+import faiss
+import re
 import numpy as np
 import polars as pl
 from spacy.tokens import Doc
 from rapidfuzz import process, fuzz
-from tqdm.autonotebook import tqdm 
 from collections import Counter  # We'll use Counter for voting
 
-VECTORIZER_PATH = "Feature Extraction/vectorizer/street_vectorizer.pkl"
-INDEX_PATH = "Feature Extraction/vectorizer/street_index_ivfpq.faiss"
-STREET_LIST_PATH = "Feature Extraction/vectorizer/all_streets_list.pkl"
+VECTORIZER_PATH = "ner/vectorizer/street_vectorizer.pkl"
+INDEX_PATH = "ner/vectorizer/street_index_ivfpq.faiss"
+STREET_LIST_PATH = "ner/vectorizer/all_streets_list.pkl"
 
-nlp = spacy.load("Feature Extraction/ner-model/ner-model-best", disable=["parser", "tagger", "lemmatizer"])
+nlp = spacy.load(
+    "ner/ner-model/ner-model-best", disable=["parser", "tagger", "lemmatizer"]
+)
 
 columns_to_read = ["city_name", "district_name", "quarter_name", "street_name"]
 column_types = {
     "city_name": pl.Categorical,
     "district_name": pl.Categorical,
-    "quarter_name": pl.Categorical
+    "quarter_name": pl.Categorical,
 }
 base_df = pl.read_csv(
-    "data/base_df_filtered.csv",
-    columns=columns_to_read, 
-    schema_overrides=column_types 
+    "data/base_df_filtered.csv", columns=columns_to_read, schema_overrides=column_types
 )
 
 ALL_CITIES = set(base_df.get_column("city_name").drop_nulls().unique().to_list())
@@ -30,27 +32,32 @@ ALL_QUARTERS = set(base_df.get_column("quarter_name").drop_nulls().unique().to_l
 ALL_STREETS = set(base_df.get_column("street_name").drop_nulls().unique().to_list())
 
 try:
-    with open(VECTORIZER_PATH, 'rb') as f:
+    with open(VECTORIZER_PATH, "rb") as f:
         vectorizer = pickle.load(f)
-    with open(STREET_LIST_PATH, 'rb') as f:
+    with open(STREET_LIST_PATH, "rb") as f:
         all_streets_list = pickle.load(f)
     index = faiss.read_index(INDEX_PATH)
     index.nprobe = 10
 except FileNotFoundError:
-    print("ERROR: Required search files not found. Please run the Phase 1 setup script first.")
+    print(
+        "ERROR: Required search files not found. Please run the Phase 1 setup script first."
+    )
     exit()
 
 turkish_map = str.maketrans("ğüşöçıİ", "gusocii")
+
+
 def normalize(text: str) -> str:
     if not text:
         return ""
-    return str(text).lower().translate(turkish_map).replace("i̇","i").strip()
+    return str(text).lower().translate(turkish_map).replace("i̇", "i").strip()
+
 
 key_to_column_map = {
-    'il': 'city_name',
-    'ilce': 'district_name',
-    'mahalle': 'quarter_name',
-    'sokak': 'street_name'
+    "il": "city_name",
+    "ilce": "district_name",
+    "mahalle": "quarter_name",
+    "sokak": "street_name",
 }
 
 
@@ -67,8 +74,9 @@ name_extractor_pattern = re.compile(
     r"APARTMANI|APT|AP|"
     r"SİTESİ|SİTE|SİT"
     r")\b\.?(?:'[A-ZİÖÜÇŞĞ]+)?\s*$",  # Capture optional dot, suffixes like 'NDA, and trailing spaces
-    flags=re.IGNORECASE | re.UNICODE
+    flags=re.IGNORECASE | re.UNICODE,
 )
+
 
 def extract_name_part(text):
     """
@@ -77,10 +85,10 @@ def extract_name_part(text):
     """
     if not isinstance(text, str):
         return text
-        
+
     # Match the pattern in the text and replace the matched part with a space.
     cleaned_text = name_extractor_pattern.sub("", text)
-    
+
     # Trim any leading/trailing whitespace that may remain.
     return cleaned_text.strip()
 
@@ -89,21 +97,21 @@ def ent2dict(doc: Doc) -> dict:
     """
     Convert entities from a spaCy Doc object into a predefined
     dictionary structure.
-    
+
     Args:
         doc (spacy.tokens.Doc): The processed spaCy document.
-        
+
     Returns:
         dict: A dictionary populated with the entity text.
     """
     entity_data = {
-        'il': None,
-        'ilce': None,
-        'mahalle': None,
-        'sokak': None,
-        'semt': None, 
-        'pk': None,  
-        'diger': None
+        "il": None,
+        "ilce": None,
+        "mahalle": None,
+        "sokak": None,
+        "semt": None,
+        "pk": None,
+        "diger": None,
     }
     other_entities = []
     for ent in doc.ents:
@@ -113,12 +121,13 @@ def ent2dict(doc: Doc) -> dict:
         else:
             other_entities.append(f"{normalize(ent.text)} ({ent.label_})")
     if other_entities:
-        entity_data['other'] = other_entities
-        
+        entity_data["other"] = other_entities
+
     return entity_data
 
-#trusted_entity_cache = {}
-#Caching is not recommended since it takes lots of space when extracting big datasets and causes kernel to crash.
+
+# trusted_entity_cache = {}
+# Caching is not recommended since it takes lots of space when extracting big datasets and causes kernel to crash.
 def find_trusted_entity_cached(
     query: str,
     choices: set,
@@ -129,7 +138,7 @@ def find_trusted_entity_cached(
     if not query:
         return None
 
-    #cache_key = f"{entity_type}_{query}_{scorer.__name__}"
+    # cache_key = f"{entity_type}_{query}_{scorer.__name__}"
     # if cache_key in trusted_entity_cache:
     #     return trusted_entity_cache[cache_key]
 
@@ -141,7 +150,7 @@ def find_trusted_entity_cached(
         if extracted_match and extracted_match[1] >= trust_threshold:
             result = extracted_match[0]
 
-    #trusted_entity_cache[cache_key] = result
+    # trusted_entity_cache[cache_key] = result
     return result
 
 
@@ -149,11 +158,10 @@ def find_trusted_entity_cached(
 # Now also recognizes:
 # - Slash (/) or hyphen (-) separators
 # - Possible whitespace (\s*) around these separators
-NUMERIC_STREET_PATTERN = re.compile(r'^\s*\d+(?:\s*[/-]\s*\d+)?\s*\.?\s*$')
+NUMERIC_STREET_PATTERN = re.compile(r"^\s*\d+(?:\s*[/-]\s*\d+)?\s*\.?\s*$")
 
 
-
-# We use vectorizing approach for finding top 50 street match because running 
+# We use vectorizing approach for finding top 50 street match because running
 # fuzzy on +400000 rows of data every address is really slow.
 def find_best_street_match(
     query_street: str,
@@ -204,7 +212,8 @@ def find_best_street_match(
     # If below threshold or no match found, return None.
     return None, 0
 
-#Final version, overall this works better than the others.
+
+# Final version, overall this works better than the others.
 def calculate_match_scores_hypothesis(
     df: pl.DataFrame,
     entity_dict: dict,
@@ -213,37 +222,45 @@ def calculate_match_scores_hypothesis(
     return_top: int = 0,
     verbose: int = 0,
 ) -> pl.DataFrame:
-    
     scorers_to_try = [
-        fuzz.token_set_ratio,       
-        fuzz.ratio, 
-        fuzz.token_sort_ratio,     
+        fuzz.token_set_ratio,
+        fuzz.ratio,
+        fuzz.token_sort_ratio,
     ]
-    
+
     # --- STAGE 1: HYPOTHESIS GENERATION ---
     hypotheses = []
     consolidated_found_entities = {"il": [], "ilce": [], "mahalle": [], "sokak": []}
-    
+
     if verbose:
         print("--- STAGE 1: Generating hypotheses for each scorer... ---")
     for scorer in scorers_to_try:
         il = find_trusted_entity_cached(
-            entity_dict.get("il"), ALL_CITIES, "il",
-            scorer=scorer, trust_threshold=score_cutoff
+            entity_dict.get("il"),
+            ALL_CITIES,
+            "il",
+            scorer=scorer,
+            trust_threshold=score_cutoff,
         )
         ilce = find_trusted_entity_cached(
-            entity_dict.get("ilce"), ALL_DISTRICTS, "ilce",
-            scorer=scorer, trust_threshold=score_cutoff
+            entity_dict.get("ilce"),
+            ALL_DISTRICTS,
+            "ilce",
+            scorer=scorer,
+            trust_threshold=score_cutoff,
         )
         mahalle = find_trusted_entity_cached(
-            entity_dict.get("mahalle"), ALL_QUARTERS, "mahalle",
-            scorer=scorer, trust_threshold=score_cutoff
+            entity_dict.get("mahalle"),
+            ALL_QUARTERS,
+            "mahalle",
+            scorer=scorer,
+            trust_threshold=score_cutoff,
         )
-        #sokak = find_trusted_entity_cached(entity_dict.get("sokak"), ALL_STREETS, "sokak", scorer=scorer, trust_threshold=score_cutoff)
+        # sokak = find_trusted_entity_cached(entity_dict.get("sokak"), ALL_STREETS, "sokak", scorer=scorer, trust_threshold=score_cutoff)
         sokak, _ = find_best_street_match(
             entity_dict.get("sokak"), scorer=scorer, score_cutoff=score_cutoff + 5
         )
-        
+
         hypothesis = {
             "scorer_name": scorer.__name__,
             "il": il,
@@ -251,13 +268,17 @@ def calculate_match_scores_hypothesis(
             "mahalle": mahalle,
             "sokak": sokak,
         }
-        
+
         if any(v for k, v in hypothesis.items() if k != "scorer_name"):
             hypotheses.append(hypothesis)
-            if il: consolidated_found_entities["il"].append(il)
-            if ilce: consolidated_found_entities["ilce"].append(ilce)
-            if mahalle: consolidated_found_entities["mahalle"].append(mahalle)
-            if sokak: consolidated_found_entities["sokak"].append(sokak)
+            if il:
+                consolidated_found_entities["il"].append(il)
+            if ilce:
+                consolidated_found_entities["ilce"].append(ilce)
+            if mahalle:
+                consolidated_found_entities["mahalle"].append(mahalle)
+            if sokak:
+                consolidated_found_entities["sokak"].append(sokak)
             if verbose > 1:
                 print(
                     f"  -> Hypothesis for {scorer.__name__}: "
@@ -274,10 +295,9 @@ def calculate_match_scores_hypothesis(
             fallback_data[col_name] = None
         for col_name in mapping.values():
             fallback_data[f"{col_name}_score"] = -1.0
-        
+
         fallback_data["Overall_Score"] = -1.0
         return pl.DataFrame([fallback_data])
-            
 
     # --- STAGE 2: EVALUATE EACH HYPOTHESIS SEPARATELY ---
     best_result_from_all_hypotheses = pl.DataFrame()
@@ -286,7 +306,7 @@ def calculate_match_scores_hypothesis(
     for hypo in hypotheses:
         if verbose > 1:
             print(f"-> Testing hypothesis ({hypo['scorer_name']}):")
-        
+
         temp_df = df
         if hypo.get("il"):
             temp_df = temp_df.filter(pl.col("city_name") == hypo["il"])
@@ -296,23 +316,21 @@ def calculate_match_scores_hypothesis(
             temp_df = temp_df.filter(pl.col("quarter_name") == hypo["mahalle"])
         if hypo.get("sokak"):
             temp_df = temp_df.filter(pl.col("street_name") == hypo["sokak"])
-        
+
         if temp_df.is_empty():
             if verbose > 1:
                 print("  No candidate found with this hypothesis.")
             continue
-            
+
         score_expressions = []
         main_score_columns = []
         for dict_key, df_col_name in mapping.items():
             text_value = entity_dict.get(dict_key)
             score_col_name = f"{df_col_name}_score"
             main_score_columns.append(score_col_name)
-            
+
             if text_value and df_col_name in temp_df.columns:
-                choices = (
-                    temp_df.get_column(df_col_name).cast(pl.String).to_list()
-                )
+                choices = temp_df.get_column(df_col_name).cast(pl.String).to_list()
                 all_scores = [
                     process.cdist([text_value], choices, scorer=s)[0]
                     for s in scorers_to_try
@@ -323,22 +341,20 @@ def calculate_match_scores_hypothesis(
                 )
             else:
                 score_expressions.append(pl.lit(0).alias(score_col_name))
-        
+
         hypothesis_result_df = (
             temp_df.with_columns(score_expressions)
-            .with_columns(
-                pl.mean_horizontal(main_score_columns).alias("Overall_Score")
-            )
+            .with_columns(pl.mean_horizontal(main_score_columns).alias("Overall_Score"))
             .sort("Overall_Score", descending=True)
             .head(1)
         )
-        
+
         if verbose:
             print(
                 f"  -> Best result for {hypo['scorer_name']} hypothesis: "
                 f"{hypothesis_result_df.get_column('Overall_Score')[0]:.2f} score"
             )
-        
+
         best_result_from_all_hypotheses = pl.concat(
             [best_result_from_all_hypotheses, hypothesis_result_df]
         )
@@ -358,28 +374,25 @@ def calculate_match_scores_hypothesis(
                 Counter(found_list).most_common(1)[0][0] if found_list else None
             )
             fallback_data[df_col_name] = fallback_value
-        
+
         # Step 2: Then add score columns
         for dict_key, df_col_name in mapping.items():
             fallback_data[f"{df_col_name}_score"] = -1.0
-            
+
         fallback_data["Overall_Score"] = -1.0
         return pl.DataFrame([fallback_data])
-        
+
     if verbose:
-        print(
-            "\n--- STAGE 3: Selecting the best result among all hypotheses. ---"
-        )
-    
-    final_df = best_result_from_all_hypotheses.sort(
-        "Overall_Score", descending=True
-    )
-        
+        print("\n--- STAGE 3: Selecting the best result among all hypotheses. ---")
+
+    final_df = best_result_from_all_hypotheses.sort("Overall_Score", descending=True)
+
     return final_df.head(return_top) if return_top > 0 else final_df
 
 
-def return_cannon(address,score_cutoff=85,return_top=0):
+def return_cannon(address, score_cutoff=85, return_top=0):
     entity_dict = ent2dict(nlp(address))
 
-    return entity_dict,calculate_match_scores_hypothesis(base_df,entity_dict,key_to_column_map,score_cutoff,return_top)
-
+    return entity_dict, calculate_match_scores_hypothesis(
+        base_df, entity_dict, key_to_column_map, score_cutoff, return_top
+    )
