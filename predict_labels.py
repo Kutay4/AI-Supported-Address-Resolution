@@ -18,7 +18,9 @@ if __name__ == "__main__":
 
     model = CustomClassifier(model_name, num_labels=10390)
     model.load_state_dict(
-        torch.load("./model_files/checkpoint_latest.pth", map_location=device)["model_state_dict"]
+        torch.load("./model_files/checkpoint_latest.pth", map_location=device)[
+            "model_state_dict"
+        ]
     )
     model.eval()
     model.to(device)

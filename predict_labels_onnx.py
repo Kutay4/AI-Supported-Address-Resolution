@@ -9,7 +9,7 @@ if __name__ == "__main__":
     from torch.utils.data import DataLoader
     from utils.model_utils import AddressTestDataset
     import numpy as np
-    
+
     tokenizer_path = "./model_files/model_quantized_onnx"
     onnx_model_path = "./model_files/model_quantized_onnx/model.onnx"
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)

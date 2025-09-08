@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from .model_utils import AddressTestDataset
 from torch.utils.data import DataLoader
-import streamlit as st
+
 
 def predict_address_onnx(address, model_path, tokenizer_path):
     ort_session = ort.InferenceSession(model_path)
@@ -29,8 +29,10 @@ def predict_address_onnx(address, model_path, tokenizer_path):
 
     return pred
 
-def predict_csv_onnx(csv_file, model_path, tokenizer_path, progress_bar, batch_size=4, streeamlit = True):
 
+def predict_csv_onnx(
+    csv_file, model_path, tokenizer_path, progress_bar, batch_size=4, streeamlit=True
+):
     ort_session = ort.InferenceSession(model_path)
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
 
@@ -39,7 +41,7 @@ def predict_csv_onnx(csv_file, model_path, tokenizer_path, progress_bar, batch_s
 
     preds = []
 
-    for i,batch in enumerate(test_loader):
+    for i, batch in enumerate(test_loader):
         ort_inputs = {
             "input_ids": batch["input_ids"].cpu().numpy().astype(np.int64),
             "attention_mask": batch["attention_mask"].cpu().numpy().astype(np.int64),
@@ -49,11 +51,10 @@ def predict_csv_onnx(csv_file, model_path, tokenizer_path, progress_bar, batch_s
         preds.extend(batch_preds.tolist())
         if streeamlit:
             progress_percentage = (i + 1) / len(test_loader)
-            progress_bar.progress(progress_percentage, text=f"{(i+1)*batch_size}%")
+            progress_bar.progress(progress_percentage, text=f"{(i + 1) * batch_size}%")
 
     preds = np.array(preds)
     return pd.DataFrame({"address": csv_file["address"], "label": preds + 1})
-
 
 
 if __name__ == "__main__":
